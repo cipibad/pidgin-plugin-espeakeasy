@@ -12,7 +12,7 @@ use Purple;
     version => "0.1",
     summary => "Simple text-to-speech plugin using espeak",
     description => "Simple text-to-speech plugin using espeak",
-    author => "Sean Yeh",
+    author => "Sean Yeh, cipibad",
     url => "",
     load => "plugin_load",
     unload => "plugin_unload",
@@ -31,6 +31,7 @@ sub plugin_load {
 
     # A pointer to the handle to which the signal belongs
     $convs_handle = Purple::Conversations::get_handle();
+    Purple::Debug::info("espeakeasy", "Purple::Conversations::get_handle() - " . ($convs_handle ? "ok." : "fail.") . "\n");
 
     # Connect the perl sub 'receiving_im_msg_cb' to the event 'receiving-im-msg'
     Purple::Signal::connect($convs_handle, "receiving-im-msg", $plugin, \&receiving_im_msg_cb, "yyy");
@@ -50,10 +51,27 @@ sub receiving_im_msg_cb {
 
     my $buddy = Purple::Find::buddy($account, $who);
     $name = $buddy->get_alias() || $buddy->get_name();
+
     $name =~ s/"/''/g;
 
-    $spoken = "$name says $msg";
+    $name =~ /\(([^)]*)\)/;
+    $country = $1;
 
-    system(("espeak \"$spoken\" --stdout | aplay"));
+    $lang = "";
+    $says = "says";
+
+    if ( $country =~ /RO/ )
+    {
+        $lang = "-v ro";
+        $says = "spune";
+    }
+
+    $name =~ s/\([^)]*\)//g;
+
+    $msg  =~ s/<[^>]*>//g;
+    $msg  =~ s/&nbsp;//g;
+
+    $spoken = "$name $says $msg";
+    system(("espeak -z " . $lang . " \"$spoken\" --stdout | aplay"));
 }
 
